@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>中文語法練習遊戲</title>
+    <style>
+        :root {
+            --primary-color: #4a90e2;
+            --error-color: #e74c3c;
+            --success-color: #2ecc71;
+            --bg-color: #f5f7fa;
+            --card-bg: #ffffff;
+            --text-color: #333;
+        }
+
+        body {
+            font-family: 'PingFang TC', 'Microsoft JhengHei', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            touch-action: manipulation;
+        }
+
+        #game-container {
+            width: 90%;
+            max-width: 500px;
+            margin: 20px auto;
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        .progress-container {
+            width: 100%;
+            height: 10px;
+            background: #e0e0e0;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+
+        #progress-bar {
+            width: 0%;
+            height: 100%;
+            background: var(--primary-color);
+            transition: width 0.3s ease;
+        }
+
+        .stats {
+            font-size: 0.9rem;
+            color: #666;
+            margin-bottom: 10px;
+        }
+
+        #question-text {
+            font-size: 1.4rem;
+            line-height: 1.6;
+            margin: 30px 0;
+            min-height: 80px;
+        }
+
+        .highlight-error {
+            color: var(--error-color);
+            font-weight: bold;
+            text-decoration: underline;
+        }
+
+        .options-container {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .option-btn {
+            padding: 15px;
+            font-size: 1.2rem;
+            background-color: var(--card-bg);
+            border: 2px solid var(--primary-color);
+            border-radius: 10px;
+            color: var(--primary-color);
+            cursor: pointer;
+            transition: all 0.2s;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .option-btn:active {
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        #result-screen {
+            display: none;
+            width: 90%;
+            max-width: 600px;
+            margin: 20px auto;
+            padding: 20px;
+            background: white;
+            border-radius: 15px;
+            text-align: center;
+        }
+
+        .review-list {
+            text-align: left;
+            margin-top: 20px;
+        }
+
+        .review-item {
+            border-bottom: 1px solid #eee;
+            padding: 10px 0;
+            font-size: 0.95rem;
+        }
+
+        .correct-ans {
+            color: var(--success-color);
+            font-weight: bold;
+        }
+
+        .restart-btn {
+            margin-top: 20px;
+            padding: 12px 30px;
+            font-size: 1.1rem;
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <div class="stats">題目 <span id="current-idx">1</span> / 20</div>
+        <div class="progress-container">
+            <div id="progress-bar"></div>
+        </div>
+        
+        <div id="question-area">
+            <div id="question-text">載入中...</div>
+            <div class="options-container" id="options"></div>
+        </div>
+    </div>
+
+    <div id="result-screen">
+        <h2>練習結束！</h2>
+        <p id="final-score" style="font-size: 1.5rem; color: var(--primary-color); font-weight: bold;"></p>
+        <hr>
+        <h3>正確答案回顧：</h3>
+        <div id="review-list" class="review-list"></div>
+        <button class="restart-btn" onclick="location.reload()">重新挑戰</button>
+    </div>
+
+    <script>
+        const rawData = [
+            { s: "他跟老師說的中文，你＿＿嗎？", o: ["聽懂了", "看了"], a: "聽懂了" },
+            { s: "那些資料我得再看看，昨天我＿＿。", o: ["沒看懂", "聽懂了"], a: "沒看懂" },
+            { s: "那個法國電影，你＿＿沒有？", o: ["看懂", "看得"], a: "看懂" },
+            { s: "這份合約有點複雜，我看了好幾次才＿＿。", o: ["看懂", "聽懂了"], a: "看懂" },
+            { s: "音樂太吵了，我＿＿。", o: ["聽不見", "聽懂了"], a: "聽不見" },
+            { s: "那幾個外國人說的英文你＿＿嗎？", o: ["沒看懂", "聽得懂"], a: "聽得懂" },
+            { s: "我學過幾年英文，他們說的我應該＿＿。", o: ["聽了", "聽得懂"], a: "聽得懂" },
+            { s: "現在已經三點了，早上六點你＿＿嗎？", o: ["起得來", "想起來"], a: "起得來" },
+            { s: "我好像在哪裡看過那位太極拳師父，可是我＿＿。", o: ["想起來", "想不起來"], a: "想不起來" },
+            { s: "你的垃圾那麼多，桶子那麼小，＿＿嗎？", o: ["放得下", "聽得懂"], a: "放得下" },
+            { s: "桌上的菜太多了，我＿＿。", o: ["吃不了", "拿不了"], a: "吃不了" },
+            { s: "媽媽，你不需要給我那麼多錢，我＿＿。", o: ["夠用了", "拿不了"], a: "夠用了" },
+            { s: "我們走路去學校，20分鐘＿＿嗎？", o: ["沒看懂", "到得了"], a: "到得了" },
+            { s: "我的作業還沒做完，你們去吃飯吧，我＿＿。", o: ["走不了", "到得了"], a: "走不了" },
+            { s: "天氣太熱了，＿＿我吃不下飯。", o: ["熱得", "走得"], a: "熱得" },
+            { s: "老師說話＿＿太快了，大家都＿＿。", o: ["說得／聽不懂", "走得／聽不了"], a: "說得／聽不懂" },
+            { s: "那間餐廳的菜好難吃，＿＿我都吃不下了。", o: ["難吃得", "吃了"], a: "難吃得" },
+            { s: "你是不是＿＿走不了了。", o: ["累得", "走了"], a: "累得" },
+            { s: "今天考試拿到一百分，我＿＿大叫。", o: ["高興得", "懂了"], a: "高興得" },
+            { s: "東西那麼多，你＿＿嗎？", o: ["吃得了", "拿得了"], a: "拿得了" }
+        ];
+
+        let questions = [];
+        let currentStep = 0;
+        let score = 0;
+
+        function initGame() {
+            questions = [...rawData].sort(() => Math.random() - 0.5);
+            renderQuestion();
+        }
+
+        function renderQuestion() {
+            if (currentStep >= 20) {
+                showResults();
+                return;
+            }
+
+            const q = questions[currentStep];
+            document.getElementById('current-idx').innerText = currentStep + 1;
+            document.getElementById('progress-bar').style.width = ((currentStep / 20) * 100) + '%';
+            document.getElementById('question-text').innerHTML = q.s;
+            
+            const optionsDiv = document.getElementById('options');
+            optionsDiv.innerHTML = '';
+            
+            q.o.forEach(opt => {
+                const btn = document.createElement('button');
+                btn.className = 'option-btn';
+                btn.innerText = opt;
+                btn.onclick = () => handleAnswer(opt, btn);
+                optionsDiv.appendChild(btn);
+            });
+        }
+
+        function handleAnswer(selected, btn) {
+            const q = questions[currentStep];
+            const allBtns = document.querySelectorAll('.option-btn');
+            allBtns.forEach(b => b.disabled = true);
+
+            const fullSentence = q.s.replace('＿＿', q.a);
+
+            if (selected === q.a) {
+                score++;
+                btn.style.backgroundColor = 'var(--success-color)';
+                btn.style.color = 'white';
+                setTimeout(() => {
+                    currentStep++;
+                    renderQuestion();
+                }, 800);
+            } else {
+                btn.style.backgroundColor = 'var(--error-color)';
+                btn.style.color = 'white';
+                
+                document.getElementById('question-text').innerHTML = q.s.replace('＿＿', `<span class="highlight-error">${q.a}</span>`);
+
+                speak(fullSentence);
+
+                setTimeout(() => {
+                    currentStep++;
+                    renderQuestion();
+                }, 3000);
+            }
+        }
+
+        function speak(text) {
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel(); 
+                const msg = new SpeechSynthesisUtterance(text);
+                msg.lang = 'zh-TW';
+                msg.rate = 0.8;
+                window.speechSynthesis.speak(msg);
+            }
+        }
+
+        function showResults() {
+            document.getElementById('game-container').style.display = 'none';
+            document.getElementById('result-screen').style.display = 'block';
+            document.getElementById('final-score').innerText = `得分：${score} / 20`;
+            
+            const reviewList = document.getElementById('review-list');
+            rawData.forEach((item, index) => {
+                const div = document.createElement('div');
+                div.className = 'review-item';
+                div.innerHTML = `${index + 1}. ${item.s.replace('＿＿', `<span class="correct-ans">${item.a}</span>`)}`;
+                reviewList.appendChild(div);
+            });
+        }
+
+        window.onload = initGame;
+    </script>
+</body>
+</html>
